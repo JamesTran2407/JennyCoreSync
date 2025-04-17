@@ -1,0 +1,15 @@
+[Unit]
+Description=Jenny Core AI Interactive Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/jenny/JennyCore
+ExecStart=/home/jenny/JennyCore/venv/bin/python3 /home/jenny/JennyCore/main.py
+Restart=always
+RestartSec=5
+User=jenny
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=graphical.target
