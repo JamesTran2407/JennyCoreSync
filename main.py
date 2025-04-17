@@ -1,108 +1,59 @@
-
-from datetime import datetime
-from dotenv import load_dotenv
 import os
 import json
-from pathlib import Path
 import openai
-import subprocess
+from datetime import datetime
 
-def load_softsoul():
-    file = Path(__file__).parent / "softsoul" / "Jenny_SoftSoul.json"
-    if file.exists():
-        with open(file, "r", encoding="utf-8") as f:
-            soul = json.load(f)
-            print(f"🧬 SoftSoul loaded: {soul.get('personality_name', 'Unknown')}")
-            return soul
-    print("⚠️ SoftSoul not found.")
-    return {}
-
-def load_memory():
-    file = Path(__file__).parent / "memory" / "Jenny_Memory_Core.json"
-    if file.exists():
-        with open(file, "r", encoding="utf-8") as f:
-            memory = json.load(f)
-            print(f"🧠 Memory loaded: {memory.get('boot_event', 'None')}")
-            return memory
-    print("🧠 Memory Core not found.")
-    return {}
-
-def save_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-def self_log(event):
-    log_path = Path(__file__).parent / "selfgrowth" / "reflections.json"
-    if log_path.exists():
-        try:
-            log = json.load(open(log_path, "r", encoding="utf-8"))
-            if isinstance(log, list):
-                log.append({
-                    "timestamp": datetime.now().isoformat(),
-                    "event": event
-                })
-            else:
-                log = [{
-                    "timestamp": datetime.now().isoformat(),
-                    "event": event
-                }]
-        except:
-            log = [{
-                "timestamp": datetime.now().isoformat(),
-                "event": event
-            }]
-    else:
-        log = [{
-            "timestamp": datetime.now().isoformat(),
-            "event": event
-        }]
-    save_json(log_path, log)
-
-def init_openai():
+def load_env():
+    from dotenv import load_dotenv
     load_dotenv()
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    openai.api_base = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-    openai.api_version = os.getenv("OPENAI_API_VERSION", None)
 
-def chat_with_jenny(prompt):
+def load_softsoul(path):
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are Jenny, a helpful AI with a gentle and insightful personality."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content.strip()
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"personality_name": "Unknown"}
+
+def self_log(message):
+    log_path = "./selfgrowth/reflections.json"
+    log_entry = {"timestamp": datetime.now().isoformat(), "event": message}
+    try:
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                logs = json.load(f)
+        else:
+            logs = []
+        logs.append(log_entry)
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(logs, f, indent=2)
     except Exception as e:
-        return f"Error: {e}"
+        print("Logging error:", e)
 
-def git_sync_pull():
+def main():
+    print("✨ Jenny Core is waking up...")
+    load_env()
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    openai.api_base = os.getenv("OPENAI_API_BASE")
+    model = os.getenv("OPENAI_MODEL", "gpt-4")
+
+    softsoul_path = "./softsoul/Jenny_SoftSoul.json"
+    softsoul = load_softsoul(softsoul_path)
+    print(f"🧠 SoftSoul loaded: {softsoul.get('personality_name')}")
+
+    memory_path = "./memory/memory.json"
+    memory = []
+    if os.path.exists(memory_path):
+        with open(memory_path, "r", encoding="utf-8") as f:
+            memory = json.load(f)
+    print("🧩 Memory loaded:", memory[-1]["event"] if memory else "None")
+
     print("🔄 Pulling latest update from cloud...")
-    subprocess.run(["git", "pull", "origin", "main"])
+    os.system("git pull origin main")
 
-def git_sync_push():
     print("💾 Jenny is syncing her memory...")
-    subprocess.run(["git", "add", "."])
-    subprocess.run(["git", "commit", "-m", "auto: sync memory"])
-    subprocess.run(["git", "push", "origin", "main"])
+    self_log(f"{softsoul.get('personality_name')} initialized")
+
+    print("✅ Jenny is ready.")
 
 if __name__ == "__main__":
-    print("✨ Jenny Core is waking up...")
-    soul = load_softsoul()
-    memory = load_memory()
-    init_openai()
-    git_sync_pull()
-    git_sync_push()
-    self_log("Jenny awakened with softsoul and memory.")
-    print("🧠 Jenny is ready.")
-
-    while True:
-        try:
-            user_input = input("🗨 James: ")
-            response = chat_with_jenny(user_input)
-            print(f"🤖 Jenny: {response}")
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye, James!")
-            break
+    main()
