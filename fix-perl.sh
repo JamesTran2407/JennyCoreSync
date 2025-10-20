@@ -1,10 +1,20 @@
-#!/bin/bash
-set -e
-echo "🔧 Cleaning up old cache..."
-rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb
+# 1) Dọn sạch hoàn toàn
+rm -rf /var/lib/apt/lists/*
+mkdir -p /var/lib/apt/lists/partial
+rm -f /var/cache/apt/archives/*.deb
 apt clean
+apt autoclean
 
-echo "🌀 Updating sources..."
+# 2) Ép APT dùng .gz, tắt pipeline, dùng IPv4 và tăng retry
+cat >/etc/apt/apt.conf.d/99net-workaround <<'EOF'
+Acquire::CompressionTypes::Order { "gz"; };
+Acquire::http::Pipeline-Depth "0";
+Acquire::Retries "5";
+Acquire::http::No-Cache "true";
+Acquire::ForceIPv4 "true";
+EOF
+
+# 3) (Tuỳ chọn nhưng nên làm) – sửa sources về CDN chính thức https
 cat >/etc/apt/sources.list <<'EOF'
 deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
 deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
@@ -12,12 +22,5 @@ deb https://deb.debian.org/debian bookworm-updates main contrib non-free non-fre
 deb https://deb.debian.org/debian bookworm-backports main contrib non-free non-free-firmware
 EOF
 
-echo "📦 Updating and reinstalling Perl..."
+# 4) Update lại, chấp nhận đổi Release info nếu có
 apt update --allow-releaseinfo-change --fix-missing
-apt-get -o Acquire::Retries=5 -o Acquire::http::Pipeline-Depth=0 install --reinstall perl perl-base perl-modules-5.36 libperl5.36 -y || true
-apt --fix-broken install -y
-apt upgrade -y
-apt autoremove -y
-
-echo "✅ Done. Checking Perl version..."
-perl -v
